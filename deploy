@@ -1,0 +1,5 @@
+#!/bin/bash
+
+pbuild -f main
+
+exit 0
