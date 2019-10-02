@@ -1,10 +1,14 @@
 module Main where
 
 import Prelude
+import Control.Monad.State (StateT,runStateT)
+import Control.Monad.Trans.Class (lift)
 import Data.Maybe (Maybe(..))
+import Data.List as List
 import Effect (Effect)
 import Effect.Console (logShow)
-import Web.Event.Event (Event,EventType(..))
+import Web.Event.Event (EventType(..))
+import Web.Event.Event as Event
 import Web.Event.EventTarget as EventTarget
 -- import Graphics.Canvas as Canvas -- (Context2D,Canvas)
 import Web.DOM.NonElementParentNode (NonElementParentNode,getElementById)
@@ -13,9 +17,15 @@ import Web.HTML as HTML
 import Web.HTML.Window as Window
 import Web.HTML.HTMLDocument as HTMLDocument
 
-foreign import mouse_event :: Event -> Effect Unit
+foreign import mouse_event :: Event.Event -> Effect Unit
 
-ev = EventType "click"
+newtype Line = Line {
+    y :: Number
+}
+
+type Lines = List.List Line
+
+type LineState = StateT Lines Effect Unit
 
 main :: Effect Unit
 main =
@@ -25,7 +35,8 @@ main =
                 Nothing -> logShow "OOPS"
                 Just elx ->
                     EventTarget.eventListener mouseEvent >>= \me -> 
-                        EventTarget.addEventListener (EventType "mousemove") me false (toEventTarget elx) 
+                        EventTarget.addEventListener (EventType "mouseup") me false (toEventTarget elx) 
+                        -- EventTarget.addEventListener (EventType "mousemove") me false (toEventTarget elx) 
  {-
     let 
         curId = "canvas"    
@@ -39,14 +50,18 @@ main =
 
 -}
 
-l = EventTarget.eventListener
-
-mouseEvent :: Event -> Effect Unit
+mouseEvent :: Event.Event -> Effect Unit
 mouseEvent event = 
     logShow "That's what I'm talking about!!!!!!!!!" *>
     Event.stopPropagation event *>
+    Event.preventDefault event *>
     mouse_event(event) *>
+    runStateT mouseEvent2 List.Nil *>
     pure unit
+    
+mouseEvent2 :: LineState -- StateT Int Effect Unit
+mouseEvent2 = 
+    lift $ logShow "That's what I'm talking about AGAIN!!!!!!!!!" 
 
 getDoc :: Effect NonElementParentNode
 getDoc = 
