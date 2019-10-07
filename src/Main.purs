@@ -9,8 +9,8 @@ import Data.List ((:))
 import Effect (Effect)
 import Effect.Console (logShow)
 
-import Control.Monad.ST as ST
-import Control.Monad.ST.Ref as STRef
+import Control.Monad.ST (ST,run)
+import Control.Monad.ST.Ref (STRef,new,read,write,modify)
 
 import Web.Event.Event (EventType(..))
 import Web.Event.Event as Event
@@ -57,27 +57,51 @@ type Lines = List.List Line
 instance showLine :: Show Line where
   show (Line v) = "Line " <> show v 
 
-type LineState = StateT Lines Effect Unit
+type LineState = StateT Int Effect Unit
 
+stdemo :: forall s. ST s (STRef s Int)
 stdemo = 
-    STRef.new (Line { y : 1.0 } : Line { y: 2.0 } : List.Nil) 
+    new 10
+    --STRef.new (Line { y : 1.0 } : Line { y: 2.0 } : List.Nil) 
 
-runStdemo = ST.run do
-  x <- stdemo
-  STRef.read x
+runx :: forall s. STRef s Int -> ST s Int
+runx x = 
+    --read x 
+    modify (\t -> t * 2) x
 
+    
+runStdemo2 :: Int
+runStdemo2 = run 
+    (stdemo >>= \t ->
+        runx t)
 
+runStdemo :: Int
+runStdemo = run do
+    x <- stdemo
+    runx x
+
+{-
+runStdemo2 :: forall s. ST s (STRef s Int) -> Int
+runStdemo2 sx = run $
+    stdemo >>= \t ->
+        read t
+        
+
+test = 
+    runStdemo2 stdemo
+-}
 
 xmain :: Effect Unit
 xmain =
     getDoc >>= \doc ->
         getElementById "canvas" doc >>= \elTarget ->
             case elTarget of 
-                Nothing -> logShow "OOPS"
+                Nothing -> 
+                    logShow "OOPS"
                 Just elx ->
-                    EventTarget.eventListener mouseEvent >>= \me -> 
-                        EventTarget.addEventListener (EventType "mouseup") me false (toEventTarget elx) 
-                        -- EventTarget.addEventListener (EventType "mousemove") me false (toEventTarget elx) 
+                    pure unit
+                    --EventTarget.eventListener mouseEvent >>= \me -> 
+                    --    EventTarget.addEventListener (EventType "mouseup") me false (toEventTarget elx) 
  {-
     let 
         curId = "canvas"    
@@ -97,11 +121,11 @@ mouseEvent event =
     Event.stopPropagation event *>
     Event.preventDefault event *>
     mouse_event(event) *>
-    runStateT mouseEvent2 List.Nil *>
+    --runStateT mouseEvent2 List.Nil *>
     pure unit
     
-mouseEvent2 :: LineState -- StateT Int Effect Unit
-mouseEvent2 = 
+mouseEvent2 :: Event.Event -> LineState -- StateT Int Effect Unit
+mouseEvent2 ev = 
     lift $ logShow "That's what I'm talking about AGAIN!!!!!!!!!" 
 
 getDoc :: Effect NonElementParentNode
