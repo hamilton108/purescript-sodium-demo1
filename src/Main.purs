@@ -22,6 +22,30 @@ import Web.HTML as HTML
 import Web.HTML.Window as Window
 import Web.HTML.HTMLDocument as HTMLDocument
 
+{-
+import Data.IORef (newIORef,modifyIORef,readIORef)
+
+type Counter = Int -> IO Int
+
+makeCounter :: IO Counter
+makeCounter = do
+    r <- newIORef 0
+    return (\i -> do modifyIORef r (\q -> q + i) -- (+i)
+                    readIORef r)
+
+testCounter :: Counter -> IO ()
+testCounter counter = do
+  b <- counter 1
+  c <- counter 1
+  d <- counter 1
+  print [b,c,d]
+
+main = do
+  counter <- makeCounter
+  testCounter counter
+  testCounter counter
+-}
+
 foreign import mouse_event :: Event.Event -> Effect Unit
 
 newtype Line = Line {
@@ -43,8 +67,9 @@ runStdemo = ST.run do
   STRef.read x
 
 
-main :: Effect Unit
-main =
+
+xmain :: Effect Unit
+xmain =
     getDoc >>= \doc ->
         getElementById "canvas" doc >>= \elTarget ->
             case elTarget of 
