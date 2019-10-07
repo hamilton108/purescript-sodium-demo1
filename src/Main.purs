@@ -9,8 +9,8 @@ import Data.List ((:))
 import Effect (Effect)
 import Effect.Console (logShow)
 
-import Control.Monad.ST as ST
-import Control.Monad.ST.Ref as STRef
+import Control.Monad.ST (ST,run)
+import Control.Monad.ST.Ref (STRef,new,read)
 
 import Web.Event.Event (EventType(..))
 import Web.Event.Event as Event
@@ -59,14 +59,15 @@ instance showLine :: Show Line where
 
 type LineState = StateT Lines Effect Unit
 
+stdemo :: forall s. ST s (STRef s Int)
 stdemo = 
-    STRef.new (Line { y : 1.0 } : Line { y: 2.0 } : List.Nil) 
+    new 10
+    --STRef.new (Line { y : 1.0 } : Line { y: 2.0 } : List.Nil) 
 
-runStdemo = ST.run do
+runStdemo :: Int
+runStdemo = run do
   x <- stdemo
-  STRef.read x
-
-
+  read x
 
 xmain :: Effect Unit
 xmain =
