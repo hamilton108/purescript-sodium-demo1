@@ -5,8 +5,13 @@ import Control.Monad.State (StateT,runStateT)
 import Control.Monad.Trans.Class (lift)
 import Data.Maybe (Maybe(..))
 import Data.List as List
+import Data.List ((:)) 
 import Effect (Effect)
 import Effect.Console (logShow)
+
+import Control.Monad.ST as ST
+import Control.Monad.ST.Ref as STRef
+
 import Web.Event.Event (EventType(..))
 import Web.Event.Event as Event
 import Web.Event.EventTarget as EventTarget
@@ -21,11 +26,22 @@ foreign import mouse_event :: Event.Event -> Effect Unit
 
 newtype Line = Line {
     y :: Number
-}
+} 
 
 type Lines = List.List Line
 
+instance showLine :: Show Line where
+  show (Line v) = "Line " <> show v 
+
 type LineState = StateT Lines Effect Unit
+
+stdemo = 
+    STRef.new (Line { y : 1.0 } : Line { y: 2.0 } : List.Nil) 
+
+runStdemo = ST.run do
+  x <- stdemo
+  STRef.read x
+
 
 main :: Effect Unit
 main =
