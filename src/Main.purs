@@ -57,7 +57,7 @@ type Lines = List.List Line
 instance showLine :: Show Line where
   show (Line v) = "Line " <> show v 
 
-type LineState = StateT Lines Effect Unit
+type LineState = StateT Int Effect Unit
 
 stdemo :: forall s. ST s (STRef s Int)
 stdemo = 
@@ -69,16 +69,28 @@ runStdemo = run do
   x <- stdemo
   read x
 
+{-
+runStdemo2 :: forall s. ST s (STRef s Int) -> Int
+runStdemo2 sx = run $
+    stdemo >>= \t ->
+        read t
+        
+
+test = 
+    runStdemo2 stdemo
+-}
+
 xmain :: Effect Unit
 xmain =
     getDoc >>= \doc ->
         getElementById "canvas" doc >>= \elTarget ->
             case elTarget of 
-                Nothing -> logShow "OOPS"
+                Nothing -> 
+                    logShow "OOPS"
                 Just elx ->
-                    EventTarget.eventListener mouseEvent >>= \me -> 
-                        EventTarget.addEventListener (EventType "mouseup") me false (toEventTarget elx) 
-                        -- EventTarget.addEventListener (EventType "mousemove") me false (toEventTarget elx) 
+                    pure unit
+                    --EventTarget.eventListener mouseEvent >>= \me -> 
+                    --    EventTarget.addEventListener (EventType "mouseup") me false (toEventTarget elx) 
  {-
     let 
         curId = "canvas"    
@@ -98,11 +110,11 @@ mouseEvent event =
     Event.stopPropagation event *>
     Event.preventDefault event *>
     mouse_event(event) *>
-    runStateT mouseEvent2 List.Nil *>
+    --runStateT mouseEvent2 List.Nil *>
     pure unit
     
-mouseEvent2 :: LineState -- StateT Int Effect Unit
-mouseEvent2 = 
+mouseEvent2 :: Event.Event -> LineState -- StateT Int Effect Unit
+mouseEvent2 ev = 
     lift $ logShow "That's what I'm talking about AGAIN!!!!!!!!!" 
 
 getDoc :: Effect NonElementParentNode
