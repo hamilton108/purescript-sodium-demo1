@@ -10,11 +10,7 @@ import Effect (Effect)
 import Effect.Console (logShow)
 
 import Control.Monad.ST (ST,run)
-<<<<<<< HEAD
-import Control.Monad.ST.Ref (STRef,new,read)
-=======
 import Control.Monad.ST.Ref (STRef,new,read,write,modify)
->>>>>>> 41a3faa965c3d8cc7e876309c866631ae142ab2c
 
 import Web.Event.Event (EventType(..))
 import Web.Event.Event as Event
