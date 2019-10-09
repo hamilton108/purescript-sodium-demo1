@@ -10,7 +10,11 @@ import Effect (Effect)
 import Effect.Console (logShow)
 
 import Control.Monad.ST (ST,run)
+<<<<<<< HEAD
 import Control.Monad.ST.Ref (STRef,new,read)
+=======
+import Control.Monad.ST.Ref (STRef,new,read,write,modify)
+>>>>>>> 41a3faa965c3d8cc7e876309c866631ae142ab2c
 
 import Web.Event.Event (EventType(..))
 import Web.Event.Event as Event
@@ -64,10 +68,21 @@ stdemo =
     new 10
     --STRef.new (Line { y : 1.0 } : Line { y: 2.0 } : List.Nil) 
 
+runx :: forall s. STRef s Int -> ST s Int
+runx x = 
+    --read x 
+    modify (\t -> t * 2) x
+
+    
+runStdemo2 :: Int
+runStdemo2 = run 
+    (stdemo >>= \t ->
+        runx t)
+
 runStdemo :: Int
 runStdemo = run do
-  x <- stdemo
-  read x
+    x <- stdemo
+    runx x
 
 {-
 runStdemo2 :: forall s. ST s (STRef s Int) -> Int
