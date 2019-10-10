@@ -15,6 +15,7 @@ import Control.Monad.ST.Ref (STRef,new,read,write,modify)
 import Web.Event.Event (EventType(..))
 import Web.Event.Event as Event
 import Web.Event.EventTarget as EventTarget
+import Effect.Ref as Ref
 -- import Graphics.Canvas as Canvas -- (Context2D,Canvas)
 import Web.DOM.NonElementParentNode (NonElementParentNode,getElementById)
 import Web.DOM.Element (toEventTarget)
@@ -52,12 +53,23 @@ newtype Line = Line {
     y :: Number
 } 
 
+
 type Lines = List.List Line
+
+type LinesRef = Ref.Ref Lines
+
+initLines :: Lines
+initLines = List.Nil
+
+oneLine :: Line
+oneLine = Line { y: 10.0 } 
+
+refx = Ref.new initLines
 
 instance showLine :: Show Line where
   show (Line v) = "Line " <> show v 
 
-type LineState = StateT Int Effect Unit
+type LineState = StateT (Int -> Int) Effect Unit
 
 stdemo :: forall s. ST s (STRef s Int)
 stdemo = 
@@ -91,18 +103,20 @@ test =
     runStdemo2 stdemo
 -}
 
-xmain :: Effect Unit
-xmain =
+main :: Effect Unit
+main =
     getDoc >>= \doc ->
         getElementById "canvas" doc >>= \elTarget ->
             case elTarget of 
                 Nothing -> 
                     logShow "OOPS"
                 Just elx ->
-                    pure unit
-                    --EventTarget.eventListener mouseEvent >>= \me -> 
-                    --    EventTarget.addEventListener (EventType "mouseup") me false (toEventTarget elx) 
+                    --pure unit
+                    refx >>= \refx_ -> 
+                        EventTarget.eventListener (mouseEvent refx_) >>= \me -> 
+                            EventTarget.addEventListener (EventType "mouseup") me false (toEventTarget elx) 
  {-
+
     let 
         curId = "canvas"    
     in
@@ -115,13 +129,22 @@ xmain =
 
 -}
 
-mouseEvent :: Event.Event -> Effect Unit
-mouseEvent event = 
+mx :: Event.Event -> LineState 
+mx ev = pure unit
+
+mx2 :: Int -> LineState 
+mx2 i = pure unit
+
+mouseEvent :: LinesRef -> Event.Event -> Effect Unit
+mouseEvent lines event = 
     logShow "That's what I'm talking about!!!!!!!!!" *>
     Event.stopPropagation event *>
     Event.preventDefault event *>
-    mouse_event(event) *>
+    -- mouse_event(event) *>
     --runStateT mouseEvent2 List.Nil *>
+    Ref.modify_ (\lx -> oneLine : lx) lines *>
+    Ref.read lines >>= \lxx -> 
+    logShow lxx *>
     pure unit
     
 mouseEvent2 :: Event.Event -> LineState -- StateT Int Effect Unit
