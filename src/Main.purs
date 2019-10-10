@@ -58,6 +58,8 @@ type Lines = List.List Line
 
 type LinesRef = Ref.Ref Lines
 
+-- { lines :: Lines, selected :: Maybe Line }
+
 initLines :: Lines
 initLines = List.Nil
 
@@ -114,7 +116,9 @@ main =
                     --pure unit
                     refx >>= \refx_ -> 
                         EventTarget.eventListener (mouseEvent refx_) >>= \me -> 
-                            EventTarget.addEventListener (EventType "mouseup") me false (toEventTarget elx) 
+                            EventTarget.addEventListener (EventType "mouseup") me false (toEventTarget elx) *>
+                        EventTarget.eventListener (mouseEventDrag refx_) >>= \me -> 
+                            EventTarget.addEventListener (EventType "mousemove") me false (toEventTarget elx) 
  {-
 
     let 
@@ -135,12 +139,17 @@ mx ev = pure unit
 mx2 :: Int -> LineState 
 mx2 i = pure unit
 
+mouseEventDrag :: LinesRef -> Event.Event -> Effect Unit
+mouseEventDrag lines event = 
+    Ref.read lines >>= \lxx -> 
+    logShow lxx
+
 mouseEvent :: LinesRef -> Event.Event -> Effect Unit
 mouseEvent lines event = 
     logShow "That's what I'm talking about!!!!!!!!!" *>
     Event.stopPropagation event *>
     Event.preventDefault event *>
-    -- mouse_event(event) *>
+    mouse_event(event) *>
     --runStateT mouseEvent2 List.Nil *>
     Ref.modify_ (\lx -> oneLine : lx) lines *>
     Ref.read lines >>= \lxx -> 
