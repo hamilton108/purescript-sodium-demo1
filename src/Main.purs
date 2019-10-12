@@ -1,16 +1,11 @@
 module Main where
 
 import Prelude
-import Control.Monad.State (StateT,runStateT)
-import Control.Monad.Trans.Class (lift)
 import Data.Maybe (Maybe(..))
 import Data.List as List
 import Data.List ((:)) 
 import Effect (Effect)
 import Effect.Console (logShow)
-
-import Control.Monad.ST (ST,run)
-import Control.Monad.ST.Ref (STRef,new,read,write,modify)
 
 import Web.Event.Event (EventType(..))
 import Web.Event.Event as Event
@@ -47,63 +42,41 @@ main = do
   testCounter counter
 -}
 
-foreign import mouse_event :: Event.Event -> Effect Unit
 
 newtype Line = Line {
     y :: Number
 } 
 
+foreign import mouse_event :: Event.Event -> Effect Line
 
-type Lines = List.List Line
+instance showLine :: Show Line where
+    show (Line v) = "Line: " <> show v 
+
+newtype Lines = 
+    Lines
+    { lines :: List.List Line
+    , selected :: Maybe Line 
+    , draggable :: Boolean
+    }
+
+instance showLines :: Show Lines where
+    show (Lines { lines, selected }) = "Lines, " <> show lines <> ", selected: " <> show selected
 
 type LinesRef = Ref.Ref Lines
 
--- { lines :: Lines, selected :: Maybe Line }
-
 initLines :: Lines
-initLines = List.Nil
+initLines = 
+    Lines
+    { lines : List.Nil
+    , selected : Nothing
+    , draggable : true
+    }
 
 oneLine :: Line
 oneLine = Line { y: 10.0 } 
 
+refx :: Effect (Ref.Ref Lines)
 refx = Ref.new initLines
-
-instance showLine :: Show Line where
-  show (Line v) = "Line " <> show v 
-
-type LineState = StateT (Int -> Int) Effect Unit
-
-stdemo :: forall s. ST s (STRef s Int)
-stdemo = 
-    new 10
-    --STRef.new (Line { y : 1.0 } : Line { y: 2.0 } : List.Nil) 
-
-runx :: forall s. STRef s Int -> ST s Int
-runx x = 
-    --read x 
-    modify (\t -> t * 2) x
-
-    
-runStdemo2 :: Int
-runStdemo2 = run 
-    (stdemo >>= \t ->
-        runx t)
-
-runStdemo :: Int
-runStdemo = run do
-    x <- stdemo
-    runx x
-
-{-
-runStdemo2 :: forall s. ST s (STRef s Int) -> Int
-runStdemo2 sx = run $
-    stdemo >>= \t ->
-        read t
-        
-
-test = 
-    runStdemo2 stdemo
--}
 
 main :: Effect Unit
 main =
@@ -113,12 +86,11 @@ main =
                 Nothing -> 
                     logShow "OOPS"
                 Just elx ->
-                    --pure unit
                     refx >>= \refx_ -> 
-                        EventTarget.eventListener (mouseEvent refx_) >>= \me -> 
-                            EventTarget.addEventListener (EventType "mouseup") me false (toEventTarget elx) *>
-                        EventTarget.eventListener (mouseEventDrag refx_) >>= \me -> 
-                            EventTarget.addEventListener (EventType "mousemove") me false (toEventTarget elx) 
+                        EventTarget.eventListener (mouseEventAddLine refx_) >>= \me1 -> 
+                            EventTarget.addEventListener (EventType "mouseup") me1 false (toEventTarget elx) 
+                        --EventTarget.eventListener (mouseEventDrag refx_) >>= \me2 -> 
+                        --    EventTarget.addEventListener (EventType "mousemove") me2 false (toEventTarget elx) 
  {-
 
     let 
@@ -133,33 +105,37 @@ main =
 
 -}
 
-mx :: Event.Event -> LineState 
-mx ev = pure unit
-
-mx2 :: Int -> LineState 
-mx2 i = pure unit
+defaultEventHandling :: Event.Event -> Effect Unit
+defaultEventHandling event = 
+    Event.stopPropagation event *>
+    Event.preventDefault event 
 
 mouseEventDrag :: LinesRef -> Event.Event -> Effect Unit
-mouseEventDrag lines event = 
-    Ref.read lines >>= \lxx -> 
+mouseEventDrag lref event = 
+    defaultEventHandling event *>
+    Ref.read lref >>= \lxx -> 
     logShow lxx
 
-mouseEvent :: LinesRef -> Event.Event -> Effect Unit
-mouseEvent lines event = 
-    logShow "That's what I'm talking about!!!!!!!!!" *>
-    Event.stopPropagation event *>
-    Event.preventDefault event *>
-    mouse_event(event) *>
-    --runStateT mouseEvent2 List.Nil *>
-    Ref.modify_ (\lx -> oneLine : lx) lines *>
-    Ref.read lines >>= \lxx -> 
-    logShow lxx *>
-    pure unit
-    
-mouseEvent2 :: Event.Event -> LineState -- StateT Int Effect Unit
-mouseEvent2 ev = 
-    lift $ logShow "That's what I'm talking about AGAIN!!!!!!!!!" 
+addLine_ :: Line -> Lines -> Lines
+addLine_ newLine (Lines l@{lines,selected}) = 
+    Lines $ l { lines = newLine : lines } 
 
+addLine :: LinesRef -> Event.Event -> Effect Unit
+addLine lref event =
+    mouse_event(event) >>= \newLine -> 
+    --Ref.modify_ (\lx -> oneLine : lx) lref *>
+    --Ref.read lref >>= \lxx -> 
+    --logShow lxx 
+    Ref.modify_ (addLine_  newLine) lref *>
+    Ref.read lref >>= \lxx -> 
+    logShow lxx 
+
+mouseEventAddLine :: LinesRef -> Event.Event -> Effect Unit
+mouseEventAddLine lref event = 
+    logShow "That's what I'm talking about!!!!!!!!!" *>
+    defaultEventHandling event *>
+    addLine lref event 
+    
 getDoc :: Effect NonElementParentNode
 getDoc = 
     HTML.window >>= \win ->
