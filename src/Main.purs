@@ -43,11 +43,13 @@ main = do
 -}
 
 
-newtype Line = Line {
-    y :: Number
-} 
+newtype Line = 
+    Line 
+    { y :: Number
+    , draggable :: Boolean
+    } 
 
-foreign import mouse_event :: Event.Event -> Effect Line
+foreign import mouse_event :: Event.Event -> Boolean -> Effect Line
 
 instance showLine :: Show Line where
     show (Line v) = "Line: " <> show v 
@@ -56,7 +58,6 @@ newtype Lines =
     Lines
     { lines :: List.List Line
     , selected :: Maybe Line 
-    , draggable :: Boolean
     }
 
 instance showLines :: Show Lines where
@@ -69,28 +70,67 @@ initLines =
     Lines
     { lines : List.Nil
     , selected : Nothing
-    , draggable : true
     }
 
-oneLine :: Line
-oneLine = Line { y: 10.0 } 
+linesRef :: Effect (Ref.Ref Lines)
+linesRef = Ref.new initLines
 
-refx :: Effect (Ref.Ref Lines)
-refx = Ref.new initLines
+type EventListeners = List.List EventTarget.EventListener
+
+type EventListenerRef = Ref.Ref EventListeners
+
+eventListenerRef :: Effect EventListenerRef
+eventListenerRef = 
+    Ref.new List.Nil
+
+addEventListenerRef :: EventListenerRef -> EventTarget.EventListener -> Effect Unit
+addEventListenerRef lref listener = 
+    Ref.modify_ (\listeners -> listener : listeners) lref
+
+initMouseEvents :: NonElementParentNode -> Effect Unit
+initMouseEvents doc = 
+    getElementById "canvas" doc >>= \elTarget ->
+        case elTarget of 
+            Nothing -> 
+                logShow "OOPS"
+            Just elx ->
+                eventListenerRef >>= \elr ->
+                    linesRef >>= \ lir -> 
+                        EventTarget.eventListener (mouseEventAddLine lir) >>= \me1 -> 
+                            addEventListenerRef elr me1 *> 
+                            EventTarget.addEventListener (EventType "mouseup") me1 false (toEventTarget elx) 
+                        --EventTarget.eventListener (mouseEventDrag lir) >>= \me2 -> 
+                        --    EventTarget.addEventListener (EventType "mousemove") me2 false (toEventTarget elx) 
+
+initButtonEvent :: NonElementParentNode -> Effect Unit
+initButtonEvent doc = 
+    getElementById "button" doc >>= \buttonTarget ->
+        case buttonTarget of 
+            Nothing -> 
+                logShow "OOPS AGAIN"
+            Just button ->
+                EventTarget.eventListener buttonEvent >>= \b1 -> 
+                    EventTarget.addEventListener (EventType "click") b1 false (toEventTarget button) 
+
+initEvents :: Effect Unit
+initEvents =
+    getDoc >>= \doc ->
+        initMouseEvents doc *> 
+        initButtonEvent doc 
+{-
+        getElementById "button" doc >>= \buttonTarget ->
+            case buttonTarget of 
+                Nothing -> 
+                    logShow "OOPS AGAIN"
+                Just button ->
+                    EventTarget.eventListener buttonEvent >>= \b1 -> 
+                        EventTarget.addEventListener (EventType "click") b1 false (toEventTarget button) 
+-}
 
 main :: Effect Unit
 main =
-    getDoc >>= \doc ->
-        getElementById "canvas" doc >>= \elTarget ->
-            case elTarget of 
-                Nothing -> 
-                    logShow "OOPS"
-                Just elx ->
-                    refx >>= \refx_ -> 
-                        EventTarget.eventListener (mouseEventAddLine refx_) >>= \me1 -> 
-                            EventTarget.addEventListener (EventType "mouseup") me1 false (toEventTarget elx) 
-                        --EventTarget.eventListener (mouseEventDrag refx_) >>= \me2 -> 
-                        --    EventTarget.addEventListener (EventType "mousemove") me2 false (toEventTarget elx) 
+    initEvents
+
  {-
 
     let 
@@ -104,6 +144,10 @@ main =
             logShow ("Drawing canvas: " <> curId) 
 
 -}
+
+buttonEvent :: Event.Event -> Effect Unit
+buttonEvent event = 
+    logShow "BUTTON EVENT!!!"
 
 defaultEventHandling :: Event.Event -> Effect Unit
 defaultEventHandling event = 
@@ -122,10 +166,7 @@ addLine_ newLine (Lines l@{lines,selected}) =
 
 addLine :: LinesRef -> Event.Event -> Effect Unit
 addLine lref event =
-    mouse_event(event) >>= \newLine -> 
-    --Ref.modify_ (\lx -> oneLine : lx) lref *>
-    --Ref.read lref >>= \lxx -> 
-    --logShow lxx 
+    mouse_event event true >>= \newLine -> 
     Ref.modify_ (addLine_  newLine) lref *>
     Ref.read lref >>= \lxx -> 
     logShow lxx 
