@@ -95,40 +95,14 @@ initMouseEvents elr doc =
             Nothing -> 
                 logShow "OOPS"
             Just elx ->
-                linesRef >>= \ lir -> 
+                logShow "adding event listeners..." *>
+                linesRef >>= \lir -> 
                     EventTarget.eventListener (mouseEventAddLine lir) >>= \me1 -> 
-                        addEventListenerRef elr me1 *> 
-                        EventTarget.addEventListener (EventType "mouseup") me1 false (toEventTarget elx) 
+                        EventTarget.addEventListener (EventType "mouseup") me1 false (toEventTarget elx) *>
+                        addEventListenerRef elr me1 
 
-{-
-initMouseEvents :: NonElementParentNode -> Effect Unit
-initMouseEvents doc = 
-    getElementById "canvas" doc >>= \elTarget ->
-        case elTarget of 
-            Nothing -> 
-                logShow "OOPS"
-            Just elx ->
-                eventListenerRef >>= \elr ->
-                    linesRef >>= \ lir -> 
-                        EventTarget.eventListener (mouseEventAddLine lir) >>= \me1 -> 
-                            addEventListenerRef elr me1 *> 
-                            EventTarget.addEventListener (EventType "mouseup") me1 false (toEventTarget elx) 
-                        --EventTarget.eventListener (mouseEventDrag lir) >>= \me2 -> 
-                        --    EventTarget.addEventListener (EventType "mousemove") me2 false (toEventTarget elx) 
-
-initButtonEvent :: NonElementParentNode -> Effect Unit
-initButtonEvent doc = 
-    getElementById "button" doc >>= \buttonTarget ->
-        case buttonTarget of 
-            Nothing -> 
-                logShow "OOPS AGAIN"
-            Just button ->
-                EventTarget.eventListener buttonEvent >>= \b1 -> 
-                    EventTarget.addEventListener (EventType "click") b1 false (toEventTarget button) 
--}
-
-unlistener :: EventListenerRef -> Effect Unit
-unlistener elr =
+unlistener :: EventListenerRef -> Int -> Effect Unit
+unlistener elr dummy =
     getDoc >>= \doc ->
         getElementById "canvas" doc >>= \elTarget ->
             case elTarget of 
@@ -141,57 +115,18 @@ unlistener elr =
                                 elrx
     
 
-initEvents :: Effect Unit
+initEvents :: Effect (Int -> Effect Unit)
 initEvents =
     logShow "initEvents" *>
     getDoc >>= \doc ->
         eventListenerRef >>= \elr ->
             initMouseEvents elr doc *>
-                unlistener elr
-{-
-        getElementById "button" doc >>= \buttonTarget ->
-            case buttonTarget of 
-                Nothing -> 
-                    logShow "OOPS AGAIN"
-                Just button ->
-                    EventTarget.eventListener buttonEvent >>= \b1 -> 
-                        EventTarget.addEventListener (EventType "click") b1 false (toEventTarget button) 
--}
-
-fn0 :: Int -> Effect Unit
-fn0 i = 
-    logShow i
-
-fn1 :: Effect Unit
-fn1 = fn0 1234
-
-fn2 :: Int -> Effect Unit
-fn2 i = 
-    logShow "fn2" *>
-    fn0 i
+                pure (unlistener elr)
 
 main :: Effect Unit
 main =
-    logShow "Main" *>
-    initEvents
+    logShow "Main" 
 
- {-
-
-    let 
-        curId = "canvas"    
-    in
-    NonElementParentNode.getElementById curId >>= \canvas ->
-    case canvas of
-        Nothing -> 
-            logShow $ "CanvasId " <> curId <> " does not exist!"
-        Just canvax ->
-            logShow ("Drawing canvas: " <> curId) 
-
--}
-
-buttonEvent :: Event.Event -> Effect Unit
-buttonEvent event = 
-    logShow "BUTTON EVENT!!!"
 
 defaultEventHandling :: Event.Event -> Effect Unit
 defaultEventHandling event = 

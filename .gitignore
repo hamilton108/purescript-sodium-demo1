@@ -1,6 +1,7 @@
 .psc-package/
 output/
-dist/
+tmp/
+dist/main.js
 .local/
 .psci_modules/
 
