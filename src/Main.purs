@@ -87,6 +87,19 @@ addEventListenerRef :: EventListenerRef -> EventTarget.EventListener -> Effect U
 addEventListenerRef lref listener = 
     Ref.modify_ (\listeners -> listener : listeners) lref
 
+initMouseEvents :: EventListenerRef -> NonElementParentNode -> Effect Unit
+initMouseEvents elr doc = 
+    getElementById "canvas" doc >>= \elTarget ->
+        case elTarget of 
+            Nothing -> 
+                logShow "OOPS"
+            Just elx ->
+                linesRef >>= \ lir -> 
+                    EventTarget.eventListener (mouseEventAddLine lir) >>= \me1 -> 
+                        addEventListenerRef elr me1 *> 
+                        EventTarget.addEventListener (EventType "mouseup") me1 false (toEventTarget elx) 
+
+{-
 initMouseEvents :: NonElementParentNode -> Effect Unit
 initMouseEvents doc = 
     getElementById "canvas" doc >>= \elTarget ->
@@ -111,12 +124,18 @@ initButtonEvent doc =
             Just button ->
                 EventTarget.eventListener buttonEvent >>= \b1 -> 
                     EventTarget.addEventListener (EventType "click") b1 false (toEventTarget button) 
+-}
+
+unlistener :: EventListenerRef -> Effect Unit
+unlistener elr =
+    logShow "unlistener"
 
 initEvents :: Effect Unit
 initEvents =
     getDoc >>= \doc ->
-        initMouseEvents doc *> 
-        initButtonEvent doc 
+        eventListenerRef >>= \elr ->
+            initMouseEvents elr doc *>
+                unlistener elr
 {-
         getElementById "button" doc >>= \buttonTarget ->
             case buttonTarget of 
@@ -127,9 +146,21 @@ initEvents =
                         EventTarget.addEventListener (EventType "click") b1 false (toEventTarget button) 
 -}
 
-main :: Effect Unit
+fn0 :: Int -> Effect Unit
+fn0 i = 
+    logShow i
+
+fn1 :: Effect Unit
+fn1 = fn0 1234
+
+fn2 :: Int -> Effect Unit
+fn2 i = 
+    logShow "fn2" *>
+    fn0 i
+
 main =
-    initEvents
+    logShow "Main"
+    --initEvents
 
  {-
 
