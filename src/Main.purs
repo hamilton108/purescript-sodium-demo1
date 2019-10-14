@@ -6,6 +6,7 @@ import Data.List as List
 import Data.List ((:)) 
 import Effect (Effect)
 import Effect.Console (logShow)
+import Data.Traversable as Traversable
 
 import Web.Event.Event (EventType(..))
 import Web.Event.Event as Event
@@ -128,10 +129,21 @@ initButtonEvent doc =
 
 unlistener :: EventListenerRef -> Effect Unit
 unlistener elr =
-    logShow "unlistener"
+    getDoc >>= \doc ->
+        getElementById "canvas" doc >>= \elTarget ->
+            case elTarget of 
+                Nothing -> 
+                    logShow "OOPS"
+                Just elx ->
+                    Ref.read elr >>= \elrx -> 
+                        Traversable.traverse_ 
+                            (\x -> EventTarget.removeEventListener (EventType "mouseup") x false (toEventTarget elx))
+                                elrx
+    
 
 initEvents :: Effect Unit
 initEvents =
+    logShow "initEvents" *>
     getDoc >>= \doc ->
         eventListenerRef >>= \elr ->
             initMouseEvents elr doc *>
@@ -158,9 +170,10 @@ fn2 i =
     logShow "fn2" *>
     fn0 i
 
+main :: Effect Unit
 main =
-    logShow "Main"
-    --initEvents
+    logShow "Main" *>
+    initEvents
 
  {-
 
