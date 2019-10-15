@@ -76,7 +76,14 @@ initLines =
 linesRef :: Effect (Ref.Ref Lines)
 linesRef = Ref.new initLines
 
+newtype EventListenerInfo =
+    EventListenerInfo 
+    { listener :: EventTarget.EventListener
+    , eventType :: EventType
+    }
+
 type EventListeners = List.List EventTarget.EventListener
+--type EventListeners = List.List EventListenerInfo
 
 type EventListenerRef = Ref.Ref EventListeners
 
@@ -88,8 +95,8 @@ addEventListenerRef :: EventListenerRef -> EventTarget.EventListener -> Effect U
 addEventListenerRef lref listener = 
     Ref.modify_ (\listeners -> listener : listeners) lref
 
-initMouseEvents :: EventListenerRef -> NonElementParentNode -> Effect Unit
-initMouseEvents elr doc = 
+initMouseEvents :: NonElementParentNode -> EventListenerRef -> Effect Unit
+initMouseEvents doc elr = 
     getElementById "canvas" doc >>= \elTarget ->
         case elTarget of 
             Nothing -> 
@@ -101,27 +108,33 @@ initMouseEvents elr doc =
                         EventTarget.addEventListener (EventType "mouseup") me1 false (toEventTarget elx) *>
                         addEventListenerRef elr me1 
 
-unlistener :: EventListenerRef -> Int -> Effect Unit
-unlistener elr dummy =
-    getDoc >>= \doc ->
-        getElementById "canvas" doc >>= \elTarget ->
-            case elTarget of 
-                Nothing -> 
-                    logShow "OOPS"
-                Just elx ->
-                    Ref.read elr >>= \elrx -> 
-                        Traversable.traverse_ 
-                            (\x -> EventTarget.removeEventListener (EventType "mouseup") x false (toEventTarget elx))
-                                elrx
+-- unlisten :: 
+
+unlistener :: NonElementParentNode -> EventListenerRef -> Int -> Effect Unit
+unlistener doc elr dummy =
+    pure unit 
+
+{-
+    getElementById "canvas" doc >>= \target ->
+        case target of 
+            Nothing -> 
+                logShow "OOPS"
+            Just targetx ->
+                pure unit
+                Ref.read elr >>= \elrx -> 
+                    Traversable.traverse_ 
+                        (\x -> EventTarget.removeEventListener (EventType "mouseup") x false (toEventTarget targetx))
+                            elrx
+-}
     
 
 initEvents :: Effect (Int -> Effect Unit)
 initEvents =
-    logShow "initEvents" *>
     getDoc >>= \doc ->
-        eventListenerRef >>= \elr ->
-            initMouseEvents elr doc *>
-                pure (unlistener elr)
+        getElementById "canvas" doc >>= \target ->
+            eventListenerRef >>= \elr ->
+                initMouseEvents doc elr *>
+                    pure (unlistener doc elr)
 
 main :: Effect Unit
 main =
