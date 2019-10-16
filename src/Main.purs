@@ -50,7 +50,7 @@ newtype Line =
     , draggable :: Boolean
     } 
 
-foreign import mouse_event :: Event.Event -> Boolean -> Effect Line
+foreign import createLine :: Event.Event -> Effect Line
 
 instance showLine :: Show Line where
     show (Line v) = "Line: " <> show v 
@@ -76,14 +76,17 @@ initLines =
 linesRef :: Effect (Ref.Ref Lines)
 linesRef = Ref.new initLines
 
+{-
 newtype EventListenerInfo =
     EventListenerInfo 
     { listener :: EventTarget.EventListener
     , eventType :: EventType
     }
+-}
 
-type EventListeners = List.List EventTarget.EventListener
---type EventListeners = List.List EventListenerInfo
+type EventListenerInfo = EventTarget.EventListener
+
+type EventListeners = List.List EventListenerInfo 
 
 type EventListenerRef = Ref.Ref EventListeners
 
@@ -102,14 +105,17 @@ initMouseEvents target elr =
             EventTarget.addEventListener (EventType "mouseup") me1 false (toEventTarget target) *>
             addEventListenerRef elr me1 
 
--- unlisten :: 
+unlisten :: Element -> EventListenerInfo -> Effect Unit
+unlisten target info = 
+    EventTarget.removeEventListener (EventType "mouseup") info false (toEventTarget target)
 
 unlistener :: Element -> EventListenerRef -> Int -> Effect Unit
 unlistener target elr dummy =
+    let 
+        unlisten1 = unlisten target
+    in
     Ref.read elr >>= \elrx -> 
-        Traversable.traverse_ 
-            (\x -> EventTarget.removeEventListener (EventType "mouseup") x false (toEventTarget target))
-                elrx
+        Traversable.traverse_ unlisten1 elrx
 
 
 initEvents :: Effect (Int -> Effect Unit)
@@ -146,14 +152,13 @@ addLine_ newLine (Lines l@{lines,selected}) =
 
 addLine :: LinesRef -> Event.Event -> Effect Unit
 addLine lref event =
-    mouse_event event true >>= \newLine -> 
-    Ref.modify_ (addLine_  newLine) lref *>
-    Ref.read lref >>= \lxx -> 
-    logShow lxx 
+    createLine event >>= \newLine -> 
+    Ref.modify_ (addLine_  newLine) lref 
+    --Ref.read lref >>= \lxx -> 
+    --logShow lxx 
 
 mouseEventAddLine :: LinesRef -> Event.Event -> Effect Unit
 mouseEventAddLine lref event = 
-    logShow "That's what I'm talking about!!!!!!!!!" *>
     defaultEventHandling event *>
     addLine lref event 
     
