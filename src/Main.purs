@@ -14,7 +14,7 @@ import Web.Event.EventTarget as EventTarget
 import Effect.Ref as Ref
 -- import Graphics.Canvas as Canvas -- (Context2D,Canvas)
 import Web.DOM.NonElementParentNode (NonElementParentNode,getElementById)
-import Web.DOM.Element (toEventTarget)
+import Web.DOM.Element (toEventTarget,Element)
 import Web.HTML as HTML
 import Web.HTML.Window as Window
 import Web.HTML.HTMLDocument as HTMLDocument
@@ -50,7 +50,7 @@ newtype Line =
     , draggable :: Boolean
     } 
 
-foreign import mouse_event :: Event.Event -> Boolean -> Effect Line
+foreign import createLine :: Event.Event -> Effect Line
 
 instance showLine :: Show Line where
     show (Line v) = "Line: " <> show v 
@@ -76,7 +76,15 @@ initLines =
 linesRef :: Effect (Ref.Ref Lines)
 linesRef = Ref.new initLines
 
-type EventListeners = List.List EventTarget.EventListener
+newtype EventListenerInfo =
+    EventListenerInfo 
+    { listener :: EventTarget.EventListener
+    , eventType :: EventType
+    }
+
+-- type EventListenerInfo = EventTarget.EventListener
+
+type EventListeners = List.List EventListenerInfo 
 
 type EventListenerRef = Ref.Ref EventListeners
 
@@ -84,44 +92,44 @@ eventListenerRef :: Effect EventListenerRef
 eventListenerRef = 
     Ref.new List.Nil
 
-addEventListenerRef :: EventListenerRef -> EventTarget.EventListener -> Effect Unit
+addEventListenerRef :: EventListenerRef -> EventListenerInfo -> Effect Unit
 addEventListenerRef lref listener = 
     Ref.modify_ (\listeners -> listener : listeners) lref
 
-initMouseEvents :: EventListenerRef -> NonElementParentNode -> Effect Unit
-initMouseEvents elr doc = 
-    getElementById "canvas" doc >>= \elTarget ->
-        case elTarget of 
-            Nothing -> 
-                logShow "OOPS"
-            Just elx ->
-                logShow "adding event listeners..." *>
-                linesRef >>= \lir -> 
-                    EventTarget.eventListener (mouseEventAddLine lir) >>= \me1 -> 
-                        EventTarget.addEventListener (EventType "mouseup") me1 false (toEventTarget elx) *>
-                        addEventListenerRef elr me1 
+initMouseEvents :: Element -> EventListenerRef -> Effect Unit
+initMouseEvents target elr = 
+    linesRef >>= \lir -> 
+        EventTarget.eventListener (mouseEventAddLine lir) >>= \me1 -> 
+            let
+                info = EventListenerInfo {listener: me1, eventType: EventType "mouseup"}
+            in 
+            EventTarget.addEventListener (EventType "mouseup") me1 false (toEventTarget target) *>
+            addEventListenerRef elr info 
 
-unlistener :: EventListenerRef -> Int -> Effect Unit
-unlistener elr dummy =
-    getDoc >>= \doc ->
-        getElementById "canvas" doc >>= \elTarget ->
-            case elTarget of 
-                Nothing -> 
-                    logShow "OOPS"
-                Just elx ->
-                    Ref.read elr >>= \elrx -> 
-                        Traversable.traverse_ 
-                            (\x -> EventTarget.removeEventListener (EventType "mouseup") x false (toEventTarget elx))
-                                elrx
-    
+unlisten :: Element -> EventListenerInfo -> Effect Unit
+unlisten target (EventListenerInfo {listener,eventType}) = 
+    EventTarget.removeEventListener eventType listener false (toEventTarget target)
+
+unlistener :: Element -> EventListenerRef -> Int -> Effect Unit
+unlistener target elr dummy =
+    let 
+        unlisten1 = unlisten target
+    in
+    Ref.read elr >>= \elrx -> 
+        Traversable.traverse_ unlisten1 elrx
+
 
 initEvents :: Effect (Int -> Effect Unit)
 initEvents =
-    logShow "initEvents" *>
     getDoc >>= \doc ->
-        eventListenerRef >>= \elr ->
-            initMouseEvents elr doc *>
-                pure (unlistener elr)
+        getElementById "canvas" doc >>= \target ->
+            case target of 
+                Nothing -> 
+                    pure (\t -> pure unit) 
+                Just targetx ->
+                    eventListenerRef >>= \elr ->
+                        initMouseEvents targetx elr *>
+                            pure (unlistener targetx elr)
 
 main :: Effect Unit
 main =
@@ -145,14 +153,13 @@ addLine_ newLine (Lines l@{lines,selected}) =
 
 addLine :: LinesRef -> Event.Event -> Effect Unit
 addLine lref event =
-    mouse_event event true >>= \newLine -> 
-    Ref.modify_ (addLine_  newLine) lref *>
-    Ref.read lref >>= \lxx -> 
-    logShow lxx 
+    createLine event >>= \newLine -> 
+    Ref.modify_ (addLine_  newLine) lref 
+    --Ref.read lref >>= \lxx -> 
+    --logShow lxx 
 
 mouseEventAddLine :: LinesRef -> Event.Event -> Effect Unit
 mouseEventAddLine lref event = 
-    logShow "That's what I'm talking about!!!!!!!!!" *>
     defaultEventHandling event *>
     addLine lref event 
     
