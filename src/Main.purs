@@ -76,15 +76,13 @@ initLines =
 linesRef :: Effect (Ref.Ref Lines)
 linesRef = Ref.new initLines
 
-{-
 newtype EventListenerInfo =
     EventListenerInfo 
     { listener :: EventTarget.EventListener
     , eventType :: EventType
     }
--}
 
-type EventListenerInfo = EventTarget.EventListener
+-- type EventListenerInfo = EventTarget.EventListener
 
 type EventListeners = List.List EventListenerInfo 
 
@@ -94,7 +92,7 @@ eventListenerRef :: Effect EventListenerRef
 eventListenerRef = 
     Ref.new List.Nil
 
-addEventListenerRef :: EventListenerRef -> EventTarget.EventListener -> Effect Unit
+addEventListenerRef :: EventListenerRef -> EventListenerInfo -> Effect Unit
 addEventListenerRef lref listener = 
     Ref.modify_ (\listeners -> listener : listeners) lref
 
@@ -102,12 +100,15 @@ initMouseEvents :: Element -> EventListenerRef -> Effect Unit
 initMouseEvents target elr = 
     linesRef >>= \lir -> 
         EventTarget.eventListener (mouseEventAddLine lir) >>= \me1 -> 
+            let
+                info = EventListenerInfo {listener: me1, eventType: EventType "mouseup"}
+            in 
             EventTarget.addEventListener (EventType "mouseup") me1 false (toEventTarget target) *>
-            addEventListenerRef elr me1 
+            addEventListenerRef elr info 
 
 unlisten :: Element -> EventListenerInfo -> Effect Unit
-unlisten target info = 
-    EventTarget.removeEventListener (EventType "mouseup") info false (toEventTarget target)
+unlisten target (EventListenerInfo {listener,eventType}) = 
+    EventTarget.removeEventListener eventType listener false (toEventTarget target)
 
 unlistener :: Element -> EventListenerRef -> Int -> Effect Unit
 unlistener target elr dummy =
